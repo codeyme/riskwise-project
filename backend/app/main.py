@@ -14,6 +14,8 @@ FEATURES_PATH = ML_DIR/"features.json"
 
 models.Base.metadata.create_all(bind=engine)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
 
 app.state.model = joblib.load(MODEL_PATH)
