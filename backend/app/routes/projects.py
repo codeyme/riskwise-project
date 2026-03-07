@@ -9,9 +9,9 @@ from app import models, schemas
 router = APIRouter()
 
 
-# ===============================
+# ============================
 # DATABASE DEPENDENCY
-# ===============================
+# ============================
 def get_db():
     db = SessionLocal()
     try:
@@ -20,9 +20,9 @@ def get_db():
         db.close()
 
 
-# ===============================
+# ============================
 # CREATE PROJECT
-# ===============================
+# ============================
 @router.post("/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     db_project = models.Project(
@@ -36,17 +36,17 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     return db_project
 
 
-# ===============================
-# READ ALL PROJECTS
-# ===============================
+# ============================
+# LIST PROJECTS
+# ============================
 @router.get("/", response_model=list[schemas.Project])
 def list_projects(db: Session = Depends(get_db)):
     return db.query(models.Project).all()
 
 
-# ===============================
-# READ SINGLE PROJECT
-# ===============================
+# ============================
+# GET SINGLE PROJECT
+# ============================
 @router.get("/{project_id}", response_model=schemas.Project)
 def get_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -55,9 +55,9 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     return project
 
 
-# ===============================
+# ============================
 # UPDATE PROJECT
-# ===============================
+# ============================
 @router.put("/{project_id}", response_model=schemas.Project)
 def update_project(project_id: str, updated: schemas.ProjectCreate, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -71,9 +71,9 @@ def update_project(project_id: str, updated: schemas.ProjectCreate, db: Session 
     return project
 
 
-# ===============================
+# ============================
 # DELETE PROJECT
-# ===============================
+# ============================
 @router.delete("/{project_id}")
 def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -85,9 +85,9 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     return {"message": "Project deleted successfully"}
 
 
-# ===============================
-# CSV UPLOAD + STORE METRICS + RISK
-# ===============================
+# ============================
+# CSV UPLOAD + METRICS + RISK
+# ============================
 @router.post("/{project_id}/upload")
 def upload_csv(project_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
 
@@ -125,7 +125,7 @@ def upload_csv(project_id: str, file: UploadFile = File(...), db: Session = Depe
         else:
             risk_level = "High"
 
-        # ----- SAVE TO DATABASE -----
+        # ----- STORE IN DATABASE -----
         metrics_record = models.ProjectMetrics(
             project_id=project_id,
             total_open_issues=total_open,
@@ -144,9 +144,10 @@ def upload_csv(project_id: str, file: UploadFile = File(...), db: Session = Depe
         db.commit()
 
         return {
-            "message": "File uploaded and risk stored successfully",
+            "message": "File uploaded and risk calculated",
             "project_id": project_id,
             "risk_score": round(risk_score, 2),
+            "risk_percentage": round(risk_score * 100, 2),
             "risk_level": risk_level
         }
 
@@ -154,11 +155,11 @@ def upload_csv(project_id: str, file: UploadFile = File(...), db: Session = Depe
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# ===============================
-# GET STORED METRICS
-# ===============================
-@router.get("/{project_id}/metrics")
-def get_project_metrics(project_id: str, db: Session = Depends(get_db)):
+# ============================
+# DASHBOARD ENDPOINT (MATCHES FRONTEND)
+# ============================
+@router.get("/{project_id}/dashboard")
+def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
 
     metrics = (
         db.query(models.ProjectMetrics)
@@ -172,7 +173,10 @@ def get_project_metrics(project_id: str, db: Session = Depends(get_db)):
 
     return {
         "project_id": project_id,
-        "metrics": {
+        "risk_score": round(metrics.risk_score, 2),
+        "risk_percentage": round(metrics.risk_score * 100, 2),
+        "risk_level": metrics.risk_level,
+        "summary": {
             "total_open_issues": metrics.total_open_issues,
             "total_bug_issues": metrics.total_bug_issues,
             "total_closed_issues": metrics.total_closed_issues,
@@ -181,9 +185,5 @@ def get_project_metrics(project_id: str, db: Session = Depends(get_db)):
             "average_velocity": metrics.average_velocity,
             "issue_close_rate": metrics.issue_close_rate,
             "bug_ratio": metrics.bug_ratio
-        },
-        "risk_analysis": {
-            "risk_score": round(metrics.risk_score, 2),
-            "risk_level": metrics.risk_level
         }
     }
