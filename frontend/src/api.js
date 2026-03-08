@@ -1,7 +1,6 @@
 import { getBackendEnabled } from "./storage";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 async function request(path, options = {}) {
   if (!getBackendEnabled()) {
     throw new Error("Backend disconnected (disabled in UI).");
