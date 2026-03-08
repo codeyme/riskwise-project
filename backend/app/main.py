@@ -1,6 +1,9 @@
 from app.routes import projects
 from fastapi import FastAPI
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes import projects
 from app.database import engine
 from app import models
 
@@ -28,7 +31,6 @@ app.include_router(
     prefix="/projects",
     tags=["Projects"]
 )
-
 
 @app.get("/")
 def read_root():
