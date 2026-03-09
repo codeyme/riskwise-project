@@ -1,11 +1,10 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Dict, List, Any
+from typing import Dict, Any, List, Optional
 
 
 # ===============================
 # Project Schemas
 # ===============================
-
 class ProjectBase(BaseModel):
     name: str
     description: str
@@ -25,7 +24,6 @@ class Project(ProjectBase):
 # ===============================
 # Prediction Schemas
 # ===============================
-
 class PredictSingleRequest(BaseModel):
     features: Dict[str, float]
 
@@ -49,4 +47,4 @@ class PredictCSVResponse(BaseModel):
     project_id: str
     rows: int
     summary: PredictionSummary
-    results: List[Dict[str, Any]]
+    results: List[Dict[str, Any]]  # keeps it flexible for all the columns

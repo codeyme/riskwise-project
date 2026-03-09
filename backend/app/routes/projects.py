@@ -13,9 +13,9 @@ from app import models, schemas
 router = APIRouter()
 
 
-# ============================
+# ===============================
 # DATABASE DEPENDENCY
-# ============================
+# ===============================
 def get_db():
     db = SessionLocal()
     try:
@@ -24,9 +24,9 @@ def get_db():
         db.close()
 
 
-# ============================
+# ===============================
 # CREATE PROJECT
-# ============================
+# ===============================
 @router.post("/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     db_project = models.Project(
@@ -40,17 +40,17 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     return db_project
 
 
-# ============================
-# LIST PROJECTS
-# ============================
+# ===============================
+# READ ALL PROJECTS
+# ===============================
 @router.get("/", response_model=list[schemas.Project])
 def list_projects(db: Session = Depends(get_db)):
     return db.query(models.Project).all()
 
 
-# ============================
-# GET SINGLE PROJECT
-# ============================
+# ===============================
+# READ SINGLE PROJECT
+# ===============================
 @router.get("/{project_id}", response_model=schemas.Project)
 def get_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -59,9 +59,9 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     return project
 
 
-# ============================
+# ===============================
 # UPDATE PROJECT
-# ============================
+# ===============================
 @router.put("/{project_id}", response_model=schemas.Project)
 def update_project(project_id: str, updated: schemas.ProjectCreate, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -75,9 +75,9 @@ def update_project(project_id: str, updated: schemas.ProjectCreate, db: Session 
     return project
 
 
-# ============================
+# ===============================
 # DELETE PROJECT
-# ============================
+# ===============================
 @router.delete("/{project_id}")
 def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
