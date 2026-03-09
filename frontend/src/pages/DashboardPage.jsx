@@ -1,16 +1,43 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+
+function levelFromPercent(pct) {
+  if (pct == null || Number.isNaN(Number(pct))) return "—";
+  const p = Number(pct);
+  if (p < 10) return "Low";
+  if (p < 30) return "Medium";
+  return "High";
+}
 
 export default function DashboardPage({ selectedProjectId }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  const [riskScore, setRiskScore] = useState(0.74);
-  const [riskLevel, setRiskLevel] = useState("High");
-  const [predictedDefects, setPredictedDefects] = useState(12);
-  const [hotspot, setHotspot] = useState("auth.py");
-  const [drivers, setDrivers] = useState(["High churn", "Low test coverage", "Large commits"]);
+  // New: store last prediction payload (from localStorage via api.getDashboard())
+  const [last, setLast] = useState(null);
+
+  const derived = useMemo(() => {
+    const summary = last?.summary || {};
+    const buckets = summary?.risk_buckets || {};
+    const percent = summary?.percent_defective;
+
+    return {
+      runId: last?.run_id || "—",
+      rows: last?.rows ?? (Array.isArray(last?.results) ? last.results.length : "—"),
+      countDefective: summary?.count_defective ?? "—",
+      percentDefective: percent != null ? Number(percent) : null,
+      avgProba: summary?.avg_probability_defect != null ? Number(summary.avg_probability_defect) : null,
+      buckets: {
+        low: buckets?.low ?? "—",
+        medium: buckets?.medium ?? "—",
+        high: buckets?.high ?? "—",
+      },
+      riskLevel: levelFromPercent(percent),
+      // A simple “risk score” based on percent defective (0..1)
+      riskScore: percent != null ? Math.max(0, Math.min(1, Number(percent) / 100)) : null,
+    };
+  }, [last]);
 
   async function refresh() {
     setErr("");
@@ -24,60 +51,88 @@ export default function DashboardPage({ selectedProjectId }) {
     setLoading(true);
     try {
       const d = await api.getDashboard(selectedProjectId);
-
-      // accept flexible backend response shapes
-      const rs = d.risk_score ?? d.riskScore ?? d.score;
-      const rl = d.risk_level ?? d.riskLevel ?? d.level;
-      const pd = d.predicted_defects ?? d.predictedDefects ?? d.defects;
-      const hs = d.hotspot ?? d.hotspot_file ?? d.hotspotFile;
-      const td = d.top_drivers ?? d.topDrivers ?? d.drivers;
-
-      if (rs != null) setRiskScore(Number(rs));
-      if (rl) setRiskLevel(String(rl));
-      if (pd != null) setPredictedDefects(Number(pd));
-      if (hs) setHotspot(String(hs));
-      if (Array.isArray(td)) setDrivers(td.map(String));
-
-      setMsg("Dashboard refreshed ✅");
-    } catch {
-      setMsg("Backend dashboard not ready — showing mock preview ✅");
+      if (!d) {
+        setErr("No prediction found yet. Upload a CSV first.");
+        setLast(null);
+      } else {
+        setLast(d);
+        setMsg("Dashboard refreshed ✅");
+      }
+    } catch (e) {
+      setErr(e?.message || "Failed to refresh dashboard");
     } finally {
       setLoading(false);
     }
   }
 
+  // Auto-refresh when project changes
+  useEffect(() => {
+    if (selectedProjectId) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId]);
+
   return (
     <div className="panel">
       <div className="title">Dashboard</div>
-      <p className="sub">Mock preview (replace with API later)</p>
+      <p className="sub">
+        Shows the latest prediction for the selected project (from your most recent upload).
+      </p>
 
       {err && <div className="notice bad">{err}</div>}
       {msg && <div className="notice ok">{msg}</div>}
 
-      <div className="cardRow">
-        <div className="smallCard">
-          <div className="mutedSmall">Risk Score</div>
-          <div className="bigNum">{Number(riskScore).toFixed(2)}</div>
-          <div className="muted">Level: <b>{riskLevel}</b></div>
+      {!last ? (
+        <div className="dashPlaceholder">
+          No prediction loaded yet. Upload a CSV, then click “Refresh Dashboard”.
         </div>
+      ) : (
+        <>
+          <div className="cardRow">
+            <div className="smallCard">
+              <div className="mutedSmall">Risk Score</div>
+              <div className="bigNum">
+                {derived.riskScore != null ? derived.riskScore.toFixed(2) : "—"}
+              </div>
+              <div className="muted">
+                Level: <b>{derived.riskLevel}</b>
+              </div>
+              <div className="muted">
+                Percent defective:{" "}
+                <b>{derived.percentDefective != null ? `${derived.percentDefective.toFixed(2)}%` : "—"}</b>
+              </div>
+            </div>
 
-        <div className="smallCard">
-          <div className="mutedSmall">Predicted Defects</div>
-          <div className="bigNum">{predictedDefects}</div>
-          <div className="muted">Hotspot: <b>{hotspot}</b></div>
-        </div>
+            <div className="smallCard">
+              <div className="mutedSmall">Predicted Defects</div>
+              <div className="bigNum">{derived.countDefective}</div>
+              <div className="muted">
+                Rows analyzed: <b>{derived.rows}</b>
+              </div>
+              <div className="muted">
+                Avg defect probability:{" "}
+                <b>{derived.avgProba != null ? derived.avgProba.toFixed(3) : "—"}</b>
+              </div>
+            </div>
 
-        <div className="smallCard">
-          <div className="mutedSmall">Top Drivers</div>
-          <ol className="drivers">
-            {drivers.map((d, i) => <li key={i}>{d}</li>)}
-          </ol>
-        </div>
-      </div>
+            <div className="smallCard">
+              <div className="mutedSmall">Risk Buckets</div>
+              <ol className="drivers">
+                <li>Low: {derived.buckets.low}</li>
+                <li>Medium: {derived.buckets.medium}</li>
+                <li>High: {derived.buckets.high}</li>
+              </ol>
+              <div className="muted" style={{ marginTop: 8 }}>
+                Run: <span className="mono" style={{ wordBreak: "break-all" }}>{derived.runId}</span>
+              </div>
+            </div>
+          </div>
 
-      <div className="dashPlaceholder">
-        Charts placeholder: risk trend, defects by module, metrics over time.
-      </div>
+          <div className="dashPlaceholder">
+            Next UI ideas: add a table of top “High” rows, trend over time (needs backend history endpoint),
+            and breakdown by file/module if your CSV includes it.
+          </div>
+        </>
+      )}
 
       <button className="btn" onClick={refresh} disabled={loading} style={{ marginTop: 12 }}>
         {loading ? "Refreshing..." : "Refresh Dashboard"}
