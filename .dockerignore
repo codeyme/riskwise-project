@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.vscode
+.env
+.DS_Store
+*.log
+
+# Python/jupyter stuff (optional)
+__pycache__
+*.pyc
+.ipynb_checkpoints
+
+# If you don’t need ML artifacts in the frontend image:
+ml
