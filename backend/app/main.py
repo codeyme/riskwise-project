@@ -1,9 +1,7 @@
 from app.routes import projects
 from fastapi import FastAPI
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import projects
 from app.database import engine
 from app import models
 
@@ -11,15 +9,28 @@ from pathlib import Path
 import joblib, json
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-ML_DIR = ROOT_DIR/"ml"
-MODEL_PATH = ML_DIR/"rf_defect_model.joblib"
-FEATURES_PATH = ML_DIR/"features.json"
+ML_DIR = ROOT_DIR / "ml"
+MODEL_PATH = ML_DIR / "rf_defect_model.joblib"
+FEATURES_PATH = ML_DIR / "features.json"
 
 models.Base.metadata.create_all(bind=engine)
 
-from fastapi.middleware.cors import CORSMiddleware
-
 app = FastAPI()
+
+allow_origins=[
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # IMPORTANT when using "*"
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.state.model = joblib.load(MODEL_PATH)
 app.state.features = json.loads(FEATURES_PATH.read_text())
@@ -36,7 +47,6 @@ app.include_router(
 def read_root():
     return {"message": "RiskWise Backend Running 🚀"}
 
-
-@app.get("/health") #check
+@app.get("/health")
 def health_check():
     return {"status": "OK"}

@@ -1,28 +1,34 @@
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, ConfigDict
+from typing import Dict, List, Any
+
+
+# ===============================
+# Project Schemas
+# ===============================
 
 class ProjectBase(BaseModel):
     name: str
     description: str
 
+
 class ProjectCreate(ProjectBase):
     pass
+
 
 class Project(ProjectBase):
     id: str
 
-    class Config:
-        orm_mode = True
+    # Pydantic v2 replacement for orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ===============================
+# Prediction Schemas
+# ===============================
 
 class PredictSingleRequest(BaseModel):
-    # Frontend sends a dictionary of feature_name -> value
     features: Dict[str, float]
 
-class PredictionSummary(BaseModel):
-    count_defective: int
-    avg_probability_defect: float
-    percent_defective: float
-    risk_buckets: dict  # or Dict[str, int]
 
 class PredictSingleResponse(BaseModel):
     project_id: str
@@ -30,9 +36,17 @@ class PredictSingleResponse(BaseModel):
     predicted_class: int
     risk_level: str
 
+
+class PredictionSummary(BaseModel):
+    count_defective: int
+    avg_probability_defect: float
+    percent_defective: float
+    risk_buckets: Dict[str, int]
+
+
 class PredictCSVResponse(BaseModel):
     run_id: str
     project_id: str
     rows: int
     summary: PredictionSummary
-    results: List[Dict[str, Any]]  # keeps it flexible for all the columns
+    results: List[Dict[str, Any]]
